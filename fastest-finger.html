@@ -1,0 +1,143 @@
+<html>
+  <head>
+    <style>
+    img {
+      position: fixed;
+      width: 20px;
+      height: 20px;
+    }
+    button {
+      font-size: 20px;
+    }
+    input {
+      font-size: 20px;
+
+    }
+    </style>
+  </head>
+  <body>
+    <div id="control">
+      <button id="new">new game</button>
+      <input id="game" placeholder="game id">
+      <button id="join">join game</button>
+    </div>
+    <ul id="scores">
+
+    </ul>
+    <script src="https://www.gstatic.com/firebasejs/3.7.3/firebase.js"></script>
+    <script>
+      // Initialize Firebase
+      var config = {
+        apiKey: "AIzaSyD9dfE2tKtzwD-OW9WxHRV8eLpsJwXW2zg",
+        authDomain: "fastfingers.firebaseapp.com",
+        databaseURL: "https://fastfingers.firebaseio.com",
+        storageBucket: "firebase-fastfingers.appspot.com",
+        messagingSenderId: "1048534361517"
+      };
+      firebase.initializeApp(config);
+    </script>
+    <script>
+    var database = firebase.database();
+    var reference = database.ref();
+    var gameReference;
+
+    var auth = firebase.auth();
+
+    var newButton = document.getElementById('new');
+    var joinButton = document.getElementById('join');
+    var gameInput = document.getElementById('game');
+    var control = document.getElementById('control');
+    var scores = document.getElementById('scores');
+
+    function randomId(len) {
+      var alphabet = 'abcdefghijklmnopqrstuvwxyz';
+      var id = '';
+      for (var i = 0 ; i < len ; i++)
+        id += alphabet[Math.floor(Math.random() * alphabet.length)];
+      return id;
+    };
+
+    function startGame(myUid) {
+      control.style.display = 'none';
+      window.location.hash = '#' + gameReference.key;
+
+
+      // Update with your location to the game reference
+      var xreference = gameReference.child('user/' + myUid + '/x');
+      var yreference = gameReference.child('user/' + myUid + '/y');
+      var namereference = gameReference.child('user/' + myUid + '/name');
+
+      var name = prompt('What is your name?');
+      namereference.set(name);
+
+      document.addEventListener('mousemove', function(e) {
+        xreference.set(e.clientX);
+        yreference.set(e.clientY);
+      });
+
+      var userref = gameReference.child('user/' + myUid);
+      userref.onDisconnect().remove();
+
+      // When a new user gets added
+      gameReference.child('user').on('child_added', function(snapshot) {
+        var scoreElement = document.createElement('li');
+
+        // Draw a mouse pointer for users that aren't me
+          if (snapshot.key != myUid) {
+            var image = document.createElement('img');
+            image.setAttribute('src', 'cursor.png');
+            // start watching this user
+
+            snapshot.ref.on('value', function(pos) {
+              var p = pos.val();
+              image.style.left = p.x + 'px';
+              image.style.top = p.y + 'px';
+              scoreElement.innerText = p.name + ': ' + p.score;
+            });
+
+            document.body.appendChild(image);
+          }
+
+        // Listen to the score of the user
+        scores.appendChild(scoreElement);
+      });
+
+      // TODO: synchronize when the game starts
+      // TODO: finish
+    };
+
+    auth.onAuthStateChanged(function(user) {
+      if (user) {
+        // do the game
+        console.log(user.uid);
+
+        newButton.onclick = function() {
+          var id = randomId(6);
+          gameReference = reference.child(id);
+          gameReference.set({
+            owner: user.uid
+          });
+
+          startGame(user.uid);
+        };
+
+        joinButton.onclick = function() {
+          gameReference = reference.child(gameInput.value);
+          startGame(user.uid);
+        }
+
+        if (window.location.hash.length > 1) {
+          gameReference = reference.child(window.location.hash.substring(1));
+          startGame(user.uid);
+        }
+      }
+      else {
+        auth.signInAnonymously();
+      }
+    });
+
+
+
+    </script>
+  </body>
+</html>
